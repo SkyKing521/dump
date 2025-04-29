@@ -9,6 +9,10 @@ import os
 from datetime import datetime
 from database import get_session
 from json_storage import json_storage
+from models import Room, Base
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+from config import DATABASE_URL
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -16,13 +20,44 @@ logger = logging.getLogger(__name__)
 app = Flask(__name__)
 socketio = SocketIO(app, cors_allowed_origins="*")
 
+# Create database engine
+engine = create_engine(DATABASE_URL)
+Session = sessionmaker(bind=engine)
+
 class SignalingServer:
     def __init__(self):
         self.rooms: Dict[str, Set[websockets.WebSocketServerProtocol]] = {}
         self.user_info: Dict[websockets.WebSocketServerProtocol, dict] = {}
 
+    def get_available_rooms(self):
+        session = Session()
+        try:
+            rooms = session.query(Room).all()
+            return [{'id': room.id, 'name': room.name, 'is_public': room.is_public} for room in rooms]
+        finally:
+            session.close()
+
+    async def broadcast_room_list(self):
+        rooms = self.get_available_rooms()
+        message = json.dumps({
+            'type': 'room-list',
+            'rooms': rooms
+        })
+        for room_clients in self.rooms.values():
+            for client in room_clients:
+                try:
+                    await client.send(message)
+                except:
+                    pass
+
     async def handle_connection(self, websocket: websockets.WebSocketServerProtocol):
         try:
+            # Send initial room list
+            await websocket.send(json.dumps({
+                'type': 'room-list',
+                'rooms': self.get_available_rooms()
+            }))
+
             async for message in websocket:
                 data = json.loads(message)
                 message_type = data.get('type')
@@ -37,10 +72,36 @@ class SignalingServer:
                     await self.handle_ice_candidate(websocket, data)
                 elif message_type == 'leave':
                     await self.handle_leave(websocket)
+                elif message_type == 'create-room':
+                    await self.handle_create_room(websocket, data)
         except websockets.exceptions.ConnectionClosed:
             await self.handle_leave(websocket)
         except Exception as e:
             logger.error(f"Error handling connection: {e}")
+
+    async def handle_create_room(self, websocket: websockets.WebSocketServerProtocol, data: dict):
+        session = Session()
+        try:
+            new_room = Room(
+                name=data['name'],
+                is_public=data.get('is_public', True),
+                created_by_id=data.get('user_id')
+            )
+            session.add(new_room)
+            session.commit()
+            
+            # Broadcast updated room list to all clients
+            await self.broadcast_room_list()
+            
+        except Exception as e:
+            logger.error(f"Error creating room: {e}")
+            session.rollback()
+            await websocket.send(json.dumps({
+                'type': 'error',
+                'message': 'Failed to create room'
+            }))
+        finally:
+            session.close()
 
     async def handle_join(self, websocket: websockets.WebSocketServerProtocol, data: dict):
         room_id = data['room_id']

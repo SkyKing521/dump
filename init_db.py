@@ -40,7 +40,7 @@ class Room(Base):
     id = Column(Integer, primary_key=True)
     name = Column(String(50), unique=True, nullable=False)
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
-    is_public = Column(Boolean, default=False)
+    is_public = Column(Boolean, default=True)
     created_by_id = Column(Integer, ForeignKey('users.id'))
     
     # Relationships
@@ -88,7 +88,8 @@ if not admin:
     # Create default room
     default_room = Room(
         name='General',
-        created_by=admin
+        created_by=admin,
+        is_public=True
     )
     default_room.users.append(admin)
     session.add(default_room)
