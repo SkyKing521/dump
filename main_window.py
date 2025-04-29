@@ -1,15 +1,17 @@
+import asyncio
+import json
+
 def load_rooms(self):
     """Load and display available rooms"""
     try:
         # Clear existing items
         self.rooms_list.clear()
         
-        # Get all rooms
+        # Get rooms from database
         rooms = self.session.query(Room).all()
         
         # Add rooms to list
         for room in rooms:
-            # Create item with room name and privacy status
             item = QListWidgetItem()
             if room.is_public:
                 item.setText(f"🌐 {room.name}")
@@ -20,6 +22,25 @@ def load_rooms(self):
             
     except Exception as e:
         QMessageBox.critical(self, "Error", f"Failed to load rooms: {str(e)}")
+
+def handle_room_list(self, data):
+    """Handle room list update from server"""
+    try:
+        # Clear existing items
+        self.rooms_list.clear()
+        
+        # Add rooms to list
+        for room in data['rooms']:
+            item = QListWidgetItem()
+            if room['is_public']:
+                item.setText(f"🌐 {room['name']}")
+            else:
+                item.setText(f"🔒 {room['name']}")
+            item.setData(Qt.ItemDataRole.UserRole, room['id'])
+            self.rooms_list.addItem(item)
+            
+    except Exception as e:
+        QMessageBox.critical(self, "Error", f"Failed to update room list: {str(e)}")
 
 def join_room(self):
     """Join selected room"""
@@ -76,12 +97,6 @@ def create_room(self):
         if not ok or not name:
             return
             
-        # Check if room already exists
-        existing_room = self.session.query(Room).filter(Room.name == name).first()
-        if existing_room:
-            QMessageBox.critical(self, "Error", "Room with this name already exists")
-            return
-            
         # Ask if room should be private
         is_private = QMessageBox.question(
             self,
@@ -89,34 +104,17 @@ def create_room(self):
             "Should this room be private?",
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
         ) == QMessageBox.StandardButton.Yes
+        
+        # Send create room request to server
+        if self.webrtc_client and self.webrtc_client.websocket:
+            asyncio.run(self.webrtc_client.websocket.send(json.dumps({
+                'type': 'create-room',
+                'name': name,
+                'is_public': not is_private,
+                'user_id': self.current_user.id
+            })))
+        else:
+            QMessageBox.critical(self, "Error", "Not connected to server")
             
-        password = None
-        if is_private:
-            # Get password for private room
-            password, ok = QInputDialog.getText(
-                self,
-                "Private Room",
-                "Enter room password:",
-                QLineEdit.EchoMode.Password
-            )
-            
-            if not ok or not password:
-                return
-                
-        # Create room
-        room = Room(
-            name=name,
-            is_public=not is_private,
-            password=password
-        )
-        
-        self.session.add(room)
-        self.session.commit()
-        
-        # Refresh room list
-        self.load_rooms()
-        
-        QMessageBox.information(self, "Success", f"Room '{name}' created successfully")
-        
     except Exception as e:
         QMessageBox.critical(self, "Error", f"Failed to create room: {str(e)}") 
