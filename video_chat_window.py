@@ -16,8 +16,9 @@ from webrtc_client import WebRTCClient
 from video_frame import VideoFrame
 
 class MainWindow(QMainWindow):
-    def __init__(self):
+    def __init__(self, main_menu=None):
         super().__init__()
+        self.main_menu = main_menu  # Store reference to main menu
         self.setWindowTitle("Video Chat")
         self.setMinimumSize(1200, 800)
         
@@ -293,22 +294,23 @@ class MainWindow(QMainWindow):
         self.clear_history_button.clicked.connect(self.clear_message_history)
         control_buttons_layout.addWidget(self.clear_history_button)
 
-        end_call_button = QPushButton("End Call")
-        end_call_button.setIcon(QIcon("icons/call_end.svg"))
-        end_call_button.setIconSize(QSize(24, 24))
-        end_call_button.setFixedHeight(40)
-        end_call_button.setStyleSheet("""
+        # Add end call button
+        self.end_call_button = QPushButton("End Call")
+        self.end_call_button.setIcon(QIcon("icons/call_end.svg"))
+        self.end_call_button.setIconSize(QSize(24, 24))
+        self.end_call_button.setFixedHeight(40)
+        self.end_call_button.setStyleSheet("""
             QPushButton {
                 background-color: #FF4444;
                 border-radius: 20px;
                 padding: 8px;
             }
             QPushButton:hover {
-                background-color: #FF5555;
+                background-color: #CC0000;
             }
         """)
-        end_call_button.clicked.connect(self.end_call)
-        control_buttons_layout.addWidget(end_call_button)
+        self.end_call_button.clicked.connect(self.end_call)
+        control_buttons_layout.addWidget(self.end_call_button)
 
         left_layout.addWidget(control_buttons)
 
@@ -440,30 +442,18 @@ class MainWindow(QMainWindow):
         self.camera_button.setIcon(QIcon("icons/videocam_off.svg" if is_muted else "icons/videocam.svg"))
 
     def end_call(self):
-        if self.webrtc_client:
-            self.webrtc_client.stop()
-            self.webrtc_client = None
+        # Disconnect from WebSocket
+        if hasattr(self, 'webrtc_client'):
+            self.webrtc_client.disconnect()
+        
+        # Show main menu and close video chat window
+        if self.main_menu:
+            self.main_menu.show()
         self.close()
 
     def closeEvent(self, event):
-        if self.webrtc_client:
-            self.webrtc_client.stop()
-            self.webrtc_client.wait()  # Wait for thread to finish
-            self.webrtc_client = None
-        
-        if hasattr(self, 'current_user'):
-            # Update user status to offline
-            engine = create_engine('sqlite:///chat.db')
-            Session = sessionmaker(bind=engine)
-            session = Session()
-            try:
-                user = session.query(User).filter_by(id=self.current_user.id).first()
-                if user:
-                    user.is_online = False
-                    session.commit()
-            finally:
-                session.close()
-            
+        # Call end_call when window is closed
+        self.end_call()
         event.accept()
 
     def load_message_history(self):
