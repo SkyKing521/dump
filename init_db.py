@@ -40,11 +40,13 @@ class Room(Base):
     id = Column(Integer, primary_key=True)
     name = Column(String(50), unique=True, nullable=False)
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    is_public = Column(Boolean, default=False)
     created_by_id = Column(Integer, ForeignKey('users.id'))
     
     # Relationships
     users = relationship("User", secondary=user_rooms, back_populates="rooms")
     created_by = relationship("User", foreign_keys=[created_by_id])
+    messages = relationship('Message', back_populates='room')
 
 class Message(Base):
     __tablename__ = 'messages'

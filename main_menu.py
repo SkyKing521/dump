@@ -8,20 +8,21 @@ from video_chat_window import MainWindow
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from init_db import User, Room
-from config import DATABASE_URL
+from config import (DATABASE_URL, APP_NAME, MIN_WINDOW_WIDTH, MIN_WINDOW_HEIGHT,
+                   THEME, AVATARS_DIR, ICONS_DIR, WEBSOCKET_SERVER)
 
 class MainMenu(QMainWindow):
     def __init__(self, current_user):
         super().__init__()
         self.current_user = current_user
-        self.setWindowTitle("Video Chat - Main Menu")
-        self.setMinimumSize(800, 600)
+        self.setWindowTitle(f"{APP_NAME} - Main Menu")
+        self.setMinimumSize(MIN_WINDOW_WIDTH, MIN_WINDOW_HEIGHT)
         
         # Set window properties
-        self.setStyleSheet("""
-            QMainWindow {
-                background-color: #121212;
-            }
+        self.setStyleSheet(f"""
+            QMainWindow {{
+                background-color: {THEME['background_color']};
+            }}
         """)
         
         # Create central widget and main layout
@@ -33,12 +34,12 @@ class MainMenu(QMainWindow):
         
         # Left panel (rooms list)
         left_panel = QFrame()
-        left_panel.setStyleSheet("""
-            QFrame {
-                background-color: #1E1E1E;
+        left_panel.setStyleSheet(f"""
+            QFrame {{
+                background-color: {THEME['panel_background']};
                 border-radius: 10px;
-                border: 1px solid #333333;
-            }
+                border: 1px solid {THEME['border_color']};
+            }}
         """)
         left_layout = QVBoxLayout(left_panel)
         left_layout.setContentsMargins(20, 20, 20, 20)
@@ -46,96 +47,97 @@ class MainMenu(QMainWindow):
         
         # User info
         user_info = QLabel(f"Logged in as: {self.current_user.get_display_name()}")
-        user_info.setStyleSheet("""
-            QLabel {
-                color: white;
+        user_info.setObjectName("userInfo")
+        user_info.setStyleSheet(f"""
+            QLabel {{
+                color: {THEME['text_color']};
                 font-size: 14px;
-            }
+            }}
         """)
         left_layout.addWidget(user_info)
         
         # Settings button
         settings_button = QPushButton("Settings")
-        settings_button.setStyleSheet("""
-            QPushButton {
-                background-color: #6C63FF;
+        settings_button.setStyleSheet(f"""
+            QPushButton {{
+                background-color: {THEME['accent_color']};
                 border: none;
                 border-radius: 5px;
                 padding: 10px;
-                color: white;
+                color: {THEME['text_color']};
                 font-size: 14px;
-            }
-            QPushButton:hover {
-                background-color: #5952D9;
-            }
+            }}
+            QPushButton:hover {{
+                background-color: {THEME['button_hover']};
+            }}
         """)
         settings_button.clicked.connect(self.show_settings)
         left_layout.addWidget(settings_button)
         
         # Rooms header
         rooms_header = QLabel("Your Rooms")
-        rooms_header.setStyleSheet("""
-            QLabel {
-                color: white;
+        rooms_header.setStyleSheet(f"""
+            QLabel {{
+                color: {THEME['text_color']};
                 font-size: 20px;
                 font-weight: bold;
-            }
+            }}
         """)
         left_layout.addWidget(rooms_header)
         
         # Rooms list
         self.rooms_list = QListWidget()
-        self.rooms_list.setStyleSheet("""
-            QListWidget {
-                background-color: #2D2D2D;
-                border: 1px solid #3D3D3D;
+        self.rooms_list.setStyleSheet(f"""
+            QListWidget {{
+                background-color: {THEME['button_background']};
+                border: 1px solid {THEME['border_color']};
                 border-radius: 5px;
-                color: white;
+                color: {THEME['text_color']};
                 font-size: 14px;
-            }
-            QListWidget::item {
+            }}
+            QListWidget::item {{
                 padding: 10px;
-                border-bottom: 1px solid #3D3D3D;
-            }
-            QListWidget::item:selected {
-                background-color: #6C63FF;
-            }
+                border-bottom: 1px solid {THEME['border_color']};
+            }}
+            QListWidget::item:selected {{
+                background-color: {THEME['accent_color']};
+            }}
         """)
         self.rooms_list.itemDoubleClicked.connect(self.join_room)
         left_layout.addWidget(self.rooms_list)
         
         # Create room button
         create_room_button = QPushButton("Create Room")
-        create_room_button.setStyleSheet("""
-            QPushButton {
-                background-color: #6C63FF;
+        create_room_button.setStyleSheet(f"""
+            QPushButton {{
+                background-color: {THEME['accent_color']};
                 border: none;
                 border-radius: 5px;
                 padding: 10px;
-                color: white;
+                color: {THEME['text_color']};
                 font-size: 14px;
-            }
-            QPushButton:hover {
-                background-color: #5952D9;
-            }
+            }}
+            QPushButton:hover {{
+                background-color: {THEME['button_hover']};
+            }}
         """)
         create_room_button.clicked.connect(self.create_room)
         left_layout.addWidget(create_room_button)
         
         # Test devices button
         test_devices_button = QPushButton("Test Devices")
-        test_devices_button.setStyleSheet("""
-            QPushButton {
-                background-color: #2D2D2D;
-                border: 1px solid #6C63FF;
+        test_devices_button.setStyleSheet(f"""
+            QPushButton {{
+                background-color: {THEME['button_background']};
+                border: 1px solid {THEME['accent_color']};
                 border-radius: 5px;
                 padding: 10px;
-                color: #6C63FF;
+                color: {THEME['accent_color']};
                 font-size: 14px;
-            }
-            QPushButton:hover {
-                background-color: #3D3D3D;
-            }
+            }}
+            QPushButton:hover {{
+                background-color: {THEME['button_hover']};
+            }}
         """)
         test_devices_button.clicked.connect(self.test_devices)
         left_layout.addWidget(test_devices_button)
@@ -159,9 +161,19 @@ class MainMenu(QMainWindow):
             user = session.query(User).filter_by(id=self.current_user.id).first()
             if user:
                 self.rooms_list.clear()
-                for room in user.rooms:
-                    item_text = f"{room.name}"
+                # Load all rooms where the user is a member
+                rooms = session.query(Room).join(Room.users).filter(User.id == user.id).all()
+                for room in rooms:
+                    item_text = f"{room.name} (Your room)"
                     self.rooms_list.addItem(item_text)
+                
+                # Load all public rooms
+                public_rooms = session.query(Room).filter(~Room.users.contains(user)).all()
+                for room in public_rooms:
+                    item_text = f"{room.name} (Public)"
+                    self.rooms_list.addItem(item_text)
+        except Exception as e:
+            QMessageBox.critical(self, "Error", f"Failed to load rooms: {str(e)}")
         finally:
             session.close()
             
@@ -183,9 +195,16 @@ class MainMenu(QMainWindow):
             room = session.query(Room).filter_by(name=room_name).first()
             if room:
                 # Create video chat window
-                self.video_chat = MainWindow(self.current_user, room)
+                self.video_chat = MainWindow(main_menu=self)  # Pass main menu reference
                 self.video_chat.show()
                 self.hide()
+                
+                # Start the call
+                self.video_chat.start_call(
+                    room_id=room.id,
+                    display_name=self.current_user.get_display_name(),
+                    server_url=WEBSOCKET_SERVER
+                )
         finally:
             session.close()
             
@@ -193,6 +212,12 @@ class MainMenu(QMainWindow):
         dialog = TestDialog(self)
         dialog.exec()
         
+    def update_user_info(self):
+        # Update the user info label with current user's display name
+        user_info = self.findChild(QLabel, "userInfo")
+        if user_info:
+            user_info.setText(f"Logged in as: {self.current_user.get_display_name()}")
+            
     def show_settings(self):
         settings_dialog = SettingsDialog(self.current_user, self)
         if settings_dialog.exec() == QDialog.DialogCode.Accepted:
@@ -207,8 +232,8 @@ class MainMenu(QMainWindow):
                 
                 # Update the user object
                 self.current_user.nickname = settings_dialog.nickname_input.text()
-                if settings_dialog.new_avatar_path:
-                    self.current_user.avatar_path = settings_dialog.new_avatar_path
+                if hasattr(settings_dialog, 'avatar_path') and settings_dialog.avatar_path:
+                    self.current_user.avatar_path = settings_dialog.avatar_path
                 
                 session.commit()
                 self.update_user_info()
