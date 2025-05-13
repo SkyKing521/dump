@@ -348,8 +348,71 @@ class Chat(BaseWindow):
         super().__init__("DUMP Chat", use_right_sidebar=False)
 
     def setup_ui(self):
-        super().setup_ui()
+        self.layout().addWidget(self.create_icon_sidebar())
+        self.layout().addWidget(self.create_chat_list_sidebar())
+        self.center_frame = QFrame()
+        self.center_frame.setStyleSheet(f"background-color: {BG_COLOR};")
+        self.center_layout = QVBoxLayout(self.center_frame)
+        self.center_layout.setContentsMargins(0, 0, 0, 0)
+        self.center_layout.setSpacing(0)
+        self.layout().addWidget(self.center_frame)
         self.setup_chat()
+    def create_icon_sidebar(self):
+        sidebar = QFrame()
+        sidebar.setFixedWidth(60)
+        sidebar.setStyleSheet(f"background-color: {SIDEBAR_COLOR};")
+        layout = QVBoxLayout(sidebar)
+        layout.setContentsMargins(6, 6, 6, 6)
+        icons = ["avatar.png", "chat.png", "server.png", "friends.png", "saved.png"]
+        for icon_name in icons:
+            btn = QPushButton()
+            btn.setIcon(QIcon(f"icons/{icon_name}"))
+            btn.setIconSize(QSize(24, 24))
+            style_button(btn, size=40, icon_size=20)
+            layout.addWidget(btn)
+        layout.addStretch()
+        settings_btn = QPushButton()
+        settings_btn.setIcon(QIcon("icons/settings.png"))
+        settings_btn.setIconSize(QSize(24, 24))
+        style_button(settings_btn, size=40, icon_size=20)
+        layout.addWidget(settings_btn)
+        return sidebar
+    def create_chat_list_sidebar(self):
+        sidebar = QFrame()
+        sidebar.setFixedWidth(230)
+        sidebar.setStyleSheet(f"background-color: #1e1e2c;")
+        layout = QVBoxLayout(sidebar)
+        layout.setContentsMargins(10, 10, 10, 10)
+        layout.setSpacing(12)
+
+        title = QLabel("Chats")
+        title.setFont(self.default_font)
+        title.setStyleSheet(f"color: {TEXT_COLOR}; font-weight: bold;")
+        layout.addWidget(title)
+
+        search_input = QLineEdit()
+        search_input.setPlaceholderText("Search...")
+        search_input.setFont(self.default_font)
+        search_input.setStyleSheet("""
+            QLineEdit {
+             background-color: #2a293a;
+             color: white;
+             padding: 6px 10px;
+             border-radius: 8px;
+             font-size: 12px;
+             border: none;
+         }
+         """)
+        layout.addWidget(search_input)
+
+        # TODO: Здесь можно вставить динамическую подгрузку чатов с API
+        for name in ["Helena Hills", "John Doe", "Server Admin"]:
+            chat_btn = QPushButton(name)
+            chat_btn.setFont(self.default_font)
+            chat_btn.setStyleSheet(f"""QPushButton {{ color: {TEXT_COLOR}; text-align: left; background-color: transparent; padding: 6px; border: none; border-radius: 6px;}} QPushButton:hover {{ background-color: rgba(255, 255, 255, 0.05);}}""")
+            layout.addWidget(chat_btn)
+        layout.addStretch()
+        return sidebar
 
     def setup_chat(self):
         # Шапка чата
