@@ -85,6 +85,41 @@ def create_icon_button(path, size=36, icon_size=20):
 
 class BaseWindow(QWidget):
     """Базовое окно с общими для всех окон элементами"""
+
+    def create_icon_sidebar(self):
+        sidebar = QFrame()
+        sidebar.setFixedWidth(60)
+        sidebar.setStyleSheet(f"background-color: {SIDEBAR_COLOR};")
+        layout = QVBoxLayout(sidebar)
+        layout.setContentsMargins(6, 6, 6, 6)
+
+        # Логотип
+        logo = QLabel()
+        logo.setPixmap(QPixmap("icons/logo.png").scaled(36, 36, Qt.KeepAspectRatio, Qt.SmoothTransformation))
+        logo.setAlignment(Qt.AlignCenter)
+        layout.addWidget(logo)
+        layout.addSpacing(12)
+
+    # Иконки навигации
+        icons = ["avatar.png", "chat.png", "server.png", "friends.png", "saved.png"]
+        for icon_name in icons:
+            btn = QPushButton()
+            btn.setIcon(QIcon(f"icons/{icon_name}"))
+            btn.setIconSize(QSize(24, 24))
+            style_button(btn, size=40, icon_size=20)
+            layout.addWidget(btn)
+
+        layout.addStretch()
+
+        # Настройки
+        settings_btn = QPushButton()
+        settings_btn.setIcon(QIcon("icons/settings.png"))
+        settings_btn.setIconSize(QSize(24, 24))
+        style_button(settings_btn, size=40, icon_size=20)
+        layout.addWidget(settings_btn)
+
+        return sidebar
+
     def __init__(self, title, use_right_sidebar=True):
         super().__init__()
         self.setWindowTitle(title)
@@ -357,26 +392,8 @@ class Chat(BaseWindow):
         self.center_layout.setSpacing(0)
         self.layout().addWidget(self.center_frame)
         self.setup_chat()
-    def create_icon_sidebar(self):
-        sidebar = QFrame()
-        sidebar.setFixedWidth(60)
-        sidebar.setStyleSheet(f"background-color: {SIDEBAR_COLOR};")
-        layout = QVBoxLayout(sidebar)
-        layout.setContentsMargins(6, 6, 6, 6)
-        icons = ["avatar.png", "chat.png", "server.png", "friends.png", "saved.png"]
-        for icon_name in icons:
-            btn = QPushButton()
-            btn.setIcon(QIcon(f"icons/{icon_name}"))
-            btn.setIconSize(QSize(24, 24))
-            style_button(btn, size=40, icon_size=20)
-            layout.addWidget(btn)
-        layout.addStretch()
-        settings_btn = QPushButton()
-        settings_btn.setIcon(QIcon("icons/settings.png"))
-        settings_btn.setIconSize(QSize(24, 24))
-        style_button(settings_btn, size=40, icon_size=20)
-        layout.addWidget(settings_btn)
-        return sidebar
+        super().create_icon_sidebar()
+
     def create_chat_list_sidebar(self):
         sidebar = QFrame()
         sidebar.setFixedWidth(230)
@@ -1441,11 +1458,149 @@ class SettingsWindow(BaseWindow):
         layout.addWidget(self.make_input(""))
         return layout
 
+class ServerChatWindow(BaseWindow):
+    """Окно сервера с каналами и чатом"""
+    def __init__(self):
+        super().__init__("Server", use_right_sidebar=False)
+        self.setup_server_ui()
+
+    def setup_server_ui(self):
+        # Очистка иконок и создание новой раскладки
+        for i in reversed(range(self.layout().count())):
+            self.layout().itemAt(i).widget().deleteLater()
+
+        self.layout().addWidget(self.create_icon_sidebar())
+        self.layout().addWidget(self.create_channel_sidebar())
+
+        self.center_frame = QFrame()
+        self.center_frame.setStyleSheet(f"background-color: {BG_COLOR};")
+        self.center_layout = QVBoxLayout(self.center_frame)
+        self.center_layout.setContentsMargins(0, 0, 0, 0)
+        self.center_layout.setSpacing(0)
+        self.layout().addWidget(self.center_frame)
+
+        self.setup_chat_area()
+
+    def create_channel_sidebar(self):
+        """Сайдбар с текстовыми и голосовыми каналами"""
+        sidebar = QFrame()
+        sidebar.setFixedWidth(200)
+        sidebar.setStyleSheet(f"background-color: #1e1e2c;")
+        layout = QVBoxLayout(sidebar)
+        layout.setContentsMargins(10, 10, 10, 10)
+        layout.setSpacing(12)
+
+        title = QLabel("Channels")
+        title.setFont(self.default_font)
+        title.setStyleSheet(f"color: {TEXT_COLOR}; font-weight: bold;")
+        layout.addWidget(title)
+
+        # Текстовые каналы
+        layout.addLayout(self._category_header("Text Channels"))
+        for name in ["general", "bot-commands"]:
+            layout.addWidget(self._channel_button(f"#{name}"))
+
+        # Голосовые каналы
+        layout.addLayout(self._category_header("Voice Channels"))
+        for name in ["Voice 1", "Music"]:
+            layout.addWidget(self._channel_button(f"🔊 {name}"))
+
+        layout.addStretch()
+        return sidebar
+
+    def _category_header(self, title):
+        """Категория каналов с заголовком и кнопкой добавления"""
+        layout = QHBoxLayout()
+        label = QLabel(title)
+        label.setFont(self.default_font)
+        label.setStyleSheet(f"color: {TEXT_COLOR}; font-weight: bold;")
+
+        plus_btn = create_icon_button("icons/plus.png", size=28, icon_size=16)
+        # TODO: Привязать обработчик создания канала
+
+        layout.addWidget(label)
+        layout.addStretch()
+        layout.addWidget(plus_btn)
+        return layout
+
+    def _channel_button(self, name):
+        """Кнопка для канала"""
+        btn = QPushButton(name)
+        btn.setFont(self.default_font)
+        btn.setStyleSheet(f"""
+            QPushButton {{
+                color: {TEXT_COLOR};
+                background: transparent;
+                text-align: left;
+                border: none;
+                padding: 6px 8px;
+                border-radius: 6px;
+            }}
+            QPushButton:hover {{
+                background-color: rgba(255,255,255,0.05);
+            }}
+        """)
+        # TODO: Обработчик переключения канала
+        return btn
+
+    def setup_chat_area(self):
+        """Центральная область: шапка канала, сообщения, поле ввода"""
+        header = QFrame()
+        header.setFixedHeight(60)
+        header.setStyleSheet(f"background-color: {PRIMARY_COLOR};")
+        hlayout = QHBoxLayout(header)
+        hlayout.setContentsMargins(20, 0, 20, 0)
+
+        label = QLabel("#general")
+        label.setFont(self.default_font)
+        label.setStyleSheet("color: black; font-weight: bold;")
+        hlayout.addWidget(label)
+        hlayout.addStretch()
+
+        self.center_layout.addWidget(header)
+
+        # Сообщения
+        self.scroll = QScrollArea()
+        self.scroll.setWidgetResizable(True)
+        self.scroll.setStyleSheet(f"background-color: {BG_COLOR}; border: none;")
+        self.messages_widget = QWidget()
+        self.messages_layout = QVBoxLayout(self.messages_widget)
+        self.messages_layout.addItem(QSpacerItem(20, 40, QSizePolicy.Minimum, QSizePolicy.Expanding))
+        self.scroll.setWidget(self.messages_widget)
+        self.center_layout.addWidget(self.scroll)
+
+        # Ввод сообщения
+        input_frame = QFrame()
+        input_frame.setFixedHeight(60)
+        input_frame.setStyleSheet(f"background-color: {SIDEBAR_COLOR}; border-top: 1px solid #3a394a;")
+        input_layout = QHBoxLayout(input_frame)
+        input_layout.setContentsMargins(10, 0, 10, 0)
+
+        self.message_input = QLineEdit()
+        self.message_input.setPlaceholderText("Enter your message...")
+        self.message_input.setFont(self.default_font)
+        self.message_input.setStyleSheet("""
+            QLineEdit {
+                background-color: #2a293a;
+                color: white;
+                padding: 10px;
+                border-radius: 8px;
+                font-size: 12px;
+                border: none;
+            }
+        """)
+        input_layout.addWidget(self.message_input)
+
+        for icon in ["mic_on", "clip.png", "emoji.png", "send.png"]:
+            input_layout.addWidget(create_icon_button(f"icons/{icon}"))
+
+        self.center_layout.addWidget(input_frame)
+
 # --- Точка входа ---
 if __name__ == "__main__":
     app = QApplication(sys.argv)
     # Для тестирования разных окон раскомментируйте нужное:
-    window = Chat()   
+    #window = Chat()   
     #window = ChatWindow() 
     #window = StartWindow()
     #window = ServerWindow()
@@ -1454,5 +1609,6 @@ if __name__ == "__main__":
     #window = AuthWindow() 
     #window = ProfileWindow()
     #window = SettingsWindow()
+    window = ServerChatWindow()
     window.show()
     sys.exit(app.exec_())
