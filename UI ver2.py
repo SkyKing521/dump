@@ -16,15 +16,15 @@ UI Mockup для DUMP
 """
 
 import sys
-from PyQt5.QtWidgets import (
+from PyQt6.QtWidgets import (
     QApplication, QWidget, QHBoxLayout, QVBoxLayout,
     QLabel, QPushButton, QFrame, QLineEdit, QScrollArea, 
     QSpacerItem, QSizePolicy, QListWidget, QListWidgetItem, 
     QTabWidget, QStackedWidget, QCheckBox
 )
-from PyQt5.QtGui import QPixmap, QIcon, QFont, QFontDatabase, QColor, QPainter
-from PyQt5.QtCore import Qt, QSize, QPropertyAnimation, pyqtProperty, QEasingCurve, QRect, QPoint
-from PyQt5.QtWidgets import QGraphicsDropShadowEffect
+from PyQt6.QtGui import QPixmap, QIcon, QFont, QFontDatabase, QColor, QPainter
+from PyQt6.QtCore import Qt, QSize, QPropertyAnimation, pyqtProperty, QEasingCurve, QRect, QPoint
+from PyQt6.QtWidgets import QGraphicsDropShadowEffect
 
 # --- Константы стилей ---
 PRIMARY_COLOR = "#FF54DA"    # Яркий фуксия - основной цвет
@@ -83,6 +83,30 @@ def create_icon_button(path, size=36, icon_size=20):
     style_button(btn, size=size, icon_size=icon_size)
     return btn
 
+def safe_load_pixmap(path, size=None):
+    """Безопасная загрузка изображения с обработкой ошибок"""
+    try:
+        pixmap = QPixmap(path)
+        if pixmap.isNull():
+            print(f"Failed to load image: {path}")
+            empty = QPixmap(size if size else QSize(36, 36))
+            empty.fill(Qt.GlobalColor.transparent)
+            return empty
+            
+        if size:
+            # Используем прямое масштабирование с максимальным качеством
+            return pixmap.scaled(
+                size, size,
+                Qt.AspectRatioMode.KeepAspectRatio,
+                Qt.TransformationMode.SmoothTransformation
+            )
+        return pixmap
+    except Exception as e:
+        print(f"Error loading image {path}: {e}")
+        empty = QPixmap(size if size else QSize(36, 36))
+        empty.fill(Qt.GlobalColor.transparent)
+        return empty
+
 class BaseWindow(QWidget):
     """Базовое окно с общими для всех окон элементами"""
 
@@ -95,12 +119,13 @@ class BaseWindow(QWidget):
 
         # Логотип
         logo = QLabel()
-        logo.setPixmap(QPixmap("icons/logo.png").scaled(36, 36, Qt.KeepAspectRatio, Qt.SmoothTransformation))
-        logo.setAlignment(Qt.AlignCenter)
+        logo.setPixmap(QIcon("icons/logo.png").pixmap(36, 36))
+        logo.setFixedSize(36, 36)
+        logo.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(logo)
         layout.addSpacing(12)
 
-    # Иконки навигации
+        # Иконки навигации
         icons = ["avatar.png", "chat.png", "server.png", "friends.png", "saved.png"]
         for icon_name in icons:
             btn = QPushButton()
@@ -134,10 +159,22 @@ class BaseWindow(QWidget):
 
     def load_fonts(self):
         """Загружает кастомные шрифты"""
-        font_id = QFontDatabase.addApplicationFont("RibeyeMarrow.ttf")
-        family = QFontDatabase.applicationFontFamilies(font_id)[0]
-        self.ribeye = QFont(family, 12)
-        self.default_font = QFont("Segoe UI", 10)
+        try:
+            font_id = QFontDatabase.addApplicationFont("RibeyeMarrow.ttf")
+            if font_id == -1:
+                # Если шрифт не найден, используем системный
+                self.ribeye = QFont("Segoe UI", 12)
+                self.default_font = QFont("Segoe UI", 10)
+                return
+            
+            family = QFontDatabase.applicationFontFamilies(font_id)[0]
+            self.ribeye = QFont(family, 12)
+            self.default_font = QFont("Segoe UI", 10)
+        except Exception as e:
+            print(f"Error loading fonts: {e}")
+            # В случае ошибки используем системные шрифты
+            self.ribeye = QFont("Segoe UI", 12)
+            self.default_font = QFont("Segoe UI", 10)
 
     def setup_ui(self):
         """Настраивает базовый UI (левая/правая панели)"""
@@ -162,9 +199,12 @@ class BaseWindow(QWidget):
 
         # Логотип и название
         logo_layout = QHBoxLayout()
+        
         logo = QLabel()
-        logo.setPixmap(QPixmap("icons/logo.png").scaled(36, 36, Qt.KeepAspectRatio, Qt.SmoothTransformation))
+        logo.setPixmap(QIcon("icons/logo.png").pixmap(36, 36))
+        logo.setFixedSize(36, 36)
         logo_layout.addWidget(logo)
+        
         name = QLabel("DUMP")
         name.setFont(self.ribeye)
         logo_layout.addWidget(name)
@@ -216,7 +256,7 @@ class BaseWindow(QWidget):
 
         info = QLabel("Don't have any friends yet...")
         info.setStyleSheet("color: rgba(248,165,194,0.5);")
-        info.setAlignment(Qt.AlignCenter)
+        info.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(info)
         layout.addStretch()
 
@@ -227,7 +267,7 @@ class ToggleButton(QCheckBox):
     def __init__(self, width=50):
         super().__init__()
         self.setFixedSize(width, 28)
-        self.setCursor(Qt.PointingHandCursor)
+        self.setCursor(Qt.CursorShape.PointingHandCursor)
 
         self._bg_color = "#444"
         self._circle_color = "#fff"
@@ -235,7 +275,7 @@ class ToggleButton(QCheckBox):
         self._circle_position = 2
 
         self.animation = QPropertyAnimation(self, b"circle_position")
-        self.animation.setEasingCurve(QEasingCurve.OutCubic)
+        self.animation.setEasingCurve(QEasingCurve.Type.OutCubic)
         self.animation.setDuration(180)
         self.stateChanged.connect(self.start_transition)
 
@@ -260,10 +300,10 @@ class ToggleButton(QCheckBox):
     def paintEvent(self, e):
         """Отрисовка toggle-кнопки"""
         p = QPainter(self)
-        p.setRenderHint(QPainter.Antialiasing)
+        p.setRenderHint(QPainter.RenderHint.Antialiasing)
 
         rect = self.rect()
-        p.setPen(Qt.NoPen)
+        p.setPen(Qt.PenStyle.NoPen)
 
         # Фон
         p.setBrush(QColor(self._active_color if self.isChecked() else self._bg_color))
@@ -296,7 +336,7 @@ class StartWindow(BaseWindow):
         """)
         # TODO: Добавить обработчик нажатия
         self.center_layout.addStretch()
-        self.center_layout.addWidget(btn, alignment=Qt.AlignCenter)
+        self.center_layout.addWidget(btn, alignment=Qt.AlignmentFlag.AlignCenter)
         self.center_layout.addStretch()
 
 class ChatWindow(BaseWindow):
@@ -364,7 +404,7 @@ class ChatWindow(BaseWindow):
         if badge:
             lbl = QLabel(badge, btn)
             lbl.setFixedSize(20, 20)
-            lbl.setAlignment(Qt.AlignCenter)
+            lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
             lbl.setStyleSheet(f"""
                 QLabel {{
                     background: {PRIMARY_COLOR};
@@ -392,7 +432,6 @@ class Chat(BaseWindow):
         self.center_layout.setSpacing(0)
         self.layout().addWidget(self.center_frame)
         self.setup_chat()
-        super().create_icon_sidebar()
 
     def create_chat_list_sidebar(self):
         sidebar = QFrame()
@@ -440,7 +479,7 @@ class Chat(BaseWindow):
         hlayout.setContentsMargins(20, 0, 20, 0)
 
         avatar = QLabel()
-        avatar.setPixmap(QPixmap("icons/avatar.png").scaled(40, 40, Qt.KeepAspectRatio, Qt.SmoothTransformation))
+        avatar.setPixmap(safe_load_pixmap("icons/avatar.png", 40))
         name = QLabel("Helena Hills")
         name.setFont(self.default_font)
         name.setStyleSheet("color: black; font-weight: bold;")
@@ -465,7 +504,7 @@ class Chat(BaseWindow):
         self.scroll.setStyleSheet(f"background-color: {BG_COLOR}; border: none;")
         self.messages_widget = QWidget()
         self.messages_layout = QVBoxLayout(self.messages_widget)
-        self.messages_layout.addItem(QSpacerItem(20, 40, QSizePolicy.Minimum, QSizePolicy.Expanding))
+        self.messages_layout.addItem(QSpacerItem(20, 40, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Expanding))
         self.scroll.setWidget(self.messages_widget)
         self.center_layout.addWidget(self.scroll)
 
@@ -510,7 +549,7 @@ class Chat(BaseWindow):
             label = QLabel(text)
             label.setFont(self.default_font)
             label.setStyleSheet("color: rgba(248,165,194,0.6); font-size: 10px;")
-            label.setAlignment(Qt.AlignCenter)
+            label.setAlignment(Qt.AlignmentFlag.AlignCenter)
             self.messages_layout.insertWidget(self.messages_layout.count() - 1, label)
         else:
             bubble = QFrame()
@@ -588,7 +627,7 @@ class ServerWindow(BaseWindow):
             }} 
         """)
         # TODO: Добавить обработчик нажатия
-        layout.addWidget(new_server_btn, alignment=Qt.AlignLeft)
+        layout.addWidget(new_server_btn, alignment=Qt.AlignmentFlag.AlignLeft)
 
         # Список серверов
         scroll = QScrollArea()
@@ -650,11 +689,11 @@ class FriendsWindow(BaseWindow):
         header_layout.setContentsMargins(0, 0, 0, 0)
 
         friends_label = QLabel("Friends")
-        friends_label.setFont(QFont(self.default_font.family(), 28, QFont.Bold))
+        friends_label.setFont(QFont(self.default_font.family(), 28, QFont.Weight.Bold))
         friends_label.setStyleSheet(f"color: {PRIMARY_COLOR};")
 
         question_button = create_icon_button("icons/question.png", size=32, icon_size=18)
-        question_button.setCursor(Qt.ArrowCursor)
+        question_button.setCursor(Qt.CursorShape.ArrowCursor)
         question_button.setFixedSize(36, 36)
         question_button.setStyleSheet(f"""
             QPushButton {{
@@ -693,13 +732,13 @@ class FriendsWindow(BaseWindow):
         online_layout = QVBoxLayout(online_frame)
         online_layout.setContentsMargins(0, 0, 0, 0)
         online_label = QLabel("Online")
-        online_label.setFont(QFont(self.default_font.family(), 14, QFont.Bold))
+        online_label.setFont(QFont(self.default_font.family(), 14, QFont.Weight.Bold))
         online_label.setStyleSheet(f"color: {PRIMARY_COLOR};")
         online_layout.addWidget(online_label)
 
         self.online_list = QListWidget()
-        self.online_list.setSelectionMode(QListWidget.NoSelection)
-        self.online_list.setFocusPolicy(Qt.NoFocus)
+        self.online_list.setSelectionMode(QListWidget.SelectionMode.NoSelection)
+        self.online_list.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self.online_list.setStyleSheet(f"""
             background: {SIDEBAR_COLOR};
             border: none;
@@ -717,13 +756,13 @@ class FriendsWindow(BaseWindow):
         offline_layout.setContentsMargins(0, 0, 0, 0)
 
         offline_label = QLabel("Offline")
-        offline_label.setFont(QFont(self.default_font.family(), 14, QFont.Bold))
+        offline_label.setFont(QFont(self.default_font.family(), 14, QFont.Weight.Bold))
         offline_label.setStyleSheet(f"color: {PRIMARY_COLOR};")
         offline_layout.addWidget(offline_label)
 
         self.offline_list = QListWidget()
-        self.offline_list.setSelectionMode(QListWidget.NoSelection)
-        self.offline_list.setFocusPolicy(Qt.NoFocus)
+        self.offline_list.setSelectionMode(QListWidget.SelectionMode.NoSelection)
+        self.offline_list.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self.offline_list.setStyleSheet(f"""
             background: {SIDEBAR_COLOR};
             border: none;
@@ -757,9 +796,29 @@ class FriendsWindow(BaseWindow):
     def add_placeholder(self, list_widget, text):
         """Добавляет заглушку в пустой список"""
         placeholder = QListWidgetItem(text)
-        placeholder.setFlags(Qt.NoItemFlags)
+        # Полностью отключаем все флаги и интерактивность
+        placeholder.setFlags(Qt.ItemFlag.NoItemFlags)
         placeholder.setForeground(QColor(200, 200, 200, 128))
         placeholder.setFont(QFont(self.default_font.family(), 11))
+        # Отключаем выделение и эффект наведения
+        list_widget.setStyleSheet(f"""
+            QListWidget {{
+                background: {SIDEBAR_COLOR};
+                border: none;
+                border-radius: 8px;
+                padding: 8px;
+            }}
+            QListWidget::item {{
+                background: transparent;
+                padding: 4px;
+            }}
+            QListWidget::item:selected {{
+                background: transparent;
+            }}
+            QListWidget::item:hover {{
+                background: transparent;
+            }}
+        """)
         list_widget.addItem(placeholder)
 
     def create_separator(self):
@@ -820,7 +879,7 @@ class SavedMessagesWindow(BaseWindow):
 
         self.messages_widget = QWidget()
         self.messages_layout = QVBoxLayout(self.messages_widget)
-        self.messages_layout.addItem(QSpacerItem(20, 40, QSizePolicy.Minimum, QSizePolicy.Expanding))
+        self.messages_layout.addItem(QSpacerItem(20, 40, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Expanding))
         self.scroll.setWidget(self.messages_widget)
         self.center_layout.addWidget(self.scroll)
 
@@ -862,7 +921,7 @@ class SavedMessagesWindow(BaseWindow):
             label = QLabel(text)
             label.setFont(self.default_font)
             label.setStyleSheet("color: rgba(248,165,194,0.6); font-size: 10px;")
-            label.setAlignment(Qt.AlignCenter)
+            label.setAlignment(Qt.AlignmentFlag.AlignCenter)
             self.messages_layout.insertWidget(self.messages_layout.count() - 1, label)
         else:
             bubble = QFrame()
@@ -892,17 +951,39 @@ class AuthWindow(QWidget):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Authentication")
-        self.setFixedSize(600, 800)
+        self.setFixedSize(600, 600)  # Уменьшаем высоту окна
         self.setStyleSheet(f"background-color: {BG_COLOR};")
         self.load_fonts()
         self.setup_ui()
+        # Центрируем окно на экране
+        self.center_on_screen()
+
+    def center_on_screen(self):
+        """Центрирует окно на экране"""
+        screen = QApplication.primaryScreen().geometry()
+        window_geometry = self.geometry()
+        x = (screen.width() - window_geometry.width()) // 2
+        y = (screen.height() - window_geometry.height()) // 2
+        self.move(x, y)
 
     def load_fonts(self):
         """Загружает кастомные шрифты"""
-        font_id = QFontDatabase.addApplicationFont("RibeyeMarrow.ttf")
-        family = QFontDatabase.applicationFontFamilies(font_id)[0]
-        self.ribeye = QFont(family, 14)
-        self.default_font = QFont("Segoe UI", 10)
+        try:
+            font_id = QFontDatabase.addApplicationFont("RibeyeMarrow.ttf")
+            if font_id == -1:
+                # Если шрифт не найден, используем системный
+                self.ribeye = QFont("Segoe UI", 12)
+                self.default_font = QFont("Segoe UI", 10)
+                return
+            
+            family = QFontDatabase.applicationFontFamilies(font_id)[0]
+            self.ribeye = QFont(family, 12)
+            self.default_font = QFont("Segoe UI", 10)
+        except Exception as e:
+            print(f"Error loading fonts: {e}")
+            # В случае ошибки используем системные шрифты
+            self.ribeye = QFont("Segoe UI", 12)
+            self.default_font = QFont("Segoe UI", 10)
 
     def setup_ui(self):
         """Настраивает UI окна аутентификации"""
@@ -918,14 +999,30 @@ class AuthWindow(QWidget):
         header_layout = QHBoxLayout(self.header)
         header_layout.setContentsMargins(20, 0, 20, 0)
         
-        self.logo = QLabel()
-        self.logo.setPixmap(QPixmap("icons/logo.png").scaled(40, 40))
+        # Контейнер для логотипа с белым фоном
+        logo_container = QFrame()
+        logo_container.setFixedSize(52, 52)
+        logo_container.setStyleSheet("""
+            QFrame {
+                background-color: white; 
+                border-radius: 10px;
+            }
+        """)
+        logo_layout = QHBoxLayout(logo_container)
+        logo_layout.setContentsMargins(6, 6, 6, 6)
+        
+        logo = QLabel()
+        logo.setPixmap(QIcon("icons/logo.png").pixmap(40, 40))
+        logo.setFixedSize(40, 40)
+        logo.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        logo_layout.addWidget(logo)
+        
+        header_layout.addWidget(logo_container)
         
         self.title = QLabel("DUMP")
         self.title.setFont(self.ribeye)
         self.title.setStyleSheet("color: black;")
         
-        header_layout.addWidget(self.logo)
         header_layout.addWidget(self.title)
         header_layout.addStretch()
         
@@ -939,7 +1036,6 @@ class AuthWindow(QWidget):
                 font-weight: bold;
             }
         """)
-        # TODO: Добавить обработчик нажатия
         header_layout.addWidget(self.help_btn)
         
         self.layout.addWidget(self.header)
@@ -975,7 +1071,7 @@ class AuthWindow(QWidget):
             font-size: 18px;
             font-weight: bold;
         """)
-        title.setAlignment(Qt.AlignCenter)
+        title.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(title)
         
         # Поле email
@@ -999,7 +1095,7 @@ class AuthWindow(QWidget):
         
         self.login_password = QLineEdit()
         self.login_password.setPlaceholderText("Password")
-        self.login_password.setEchoMode(QLineEdit.Password)
+        self.login_password.setEchoMode(QLineEdit.EchoMode.Password)
         self.login_password.setStyleSheet("""
             QLineEdit {
                 background: white;
@@ -1047,7 +1143,7 @@ class AuthWindow(QWidget):
         # Ссылка на регистрацию
         switch_text = QLabel("Don't have an account? <a href='#'>Sign up</a>")
         switch_text.setStyleSheet("color: white;")
-        switch_text.setAlignment(Qt.AlignCenter)
+        switch_text.setAlignment(Qt.AlignmentFlag.AlignCenter)
         switch_text.setOpenExternalLinks(False)
         switch_text.linkActivated.connect(lambda: self.main_content.setCurrentIndex(1))
         layout.addWidget(switch_text)
@@ -1069,7 +1165,7 @@ class AuthWindow(QWidget):
             font-size: 18px;
             font-weight: bold;
         """)
-        title.setAlignment(Qt.AlignCenter)
+        title.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(title)
         
         # Поле email
@@ -1107,7 +1203,7 @@ class AuthWindow(QWidget):
         
         self.signup_password = QLineEdit()
         self.signup_password.setPlaceholderText("Password")
-        self.signup_password.setEchoMode(QLineEdit.Password)
+        self.signup_password.setEchoMode(QLineEdit.EchoMode.Password)
         self.signup_password.setStyleSheet("""
             QLineEdit {
                 background: white;
@@ -1141,7 +1237,7 @@ class AuthWindow(QWidget):
         
         self.signup_confirm = QLineEdit()
         self.signup_confirm.setPlaceholderText("Confirm Password")
-        self.signup_confirm.setEchoMode(QLineEdit.Password)
+        self.signup_confirm.setEchoMode(QLineEdit.EchoMode.Password)
         self.signup_confirm.setStyleSheet("""
             QLineEdit {
                 background: white;
@@ -1189,14 +1285,14 @@ class AuthWindow(QWidget):
         # Ссылки на условия
         terms = QLabel('By signing up, you agree to our <a href="#">Terms</a> and <a href="#">Privacy Policy</a>')
         terms.setStyleSheet("color: white; font-size: 11px;")
-        terms.setAlignment(Qt.AlignCenter)
+        terms.setAlignment(Qt.AlignmentFlag.AlignCenter)
         terms.setOpenExternalLinks(True)
         layout.addWidget(terms)
         
         # Ссылка на вход
         switch_text = QLabel("Already have an account? <a href='#'>Log in</a>")
         switch_text.setStyleSheet("color: white;")
-        switch_text.setAlignment(Qt.AlignCenter)
+        switch_text.setAlignment(Qt.AlignmentFlag.AlignCenter)
         switch_text.setOpenExternalLinks(False)
         switch_text.linkActivated.connect(lambda: self.main_content.setCurrentIndex(0))
         layout.addWidget(switch_text)
@@ -1206,29 +1302,29 @@ class AuthWindow(QWidget):
 
     def toggle_login_password(self):
         """Переключает видимость пароля на странице входа"""
-        if self.login_password.echoMode() == QLineEdit.Password:
-            self.login_password.setEchoMode(QLineEdit.Normal)
+        if self.login_password.echoMode() == QLineEdit.EchoMode.Password:
+            self.login_password.setEchoMode(QLineEdit.EchoMode.Normal)
             self.login_eye_btn.setIcon(QIcon("icons/eye_open.png"))
         else:
-            self.login_password.setEchoMode(QLineEdit.Password)
+            self.login_password.setEchoMode(QLineEdit.EchoMode.Password)
             self.login_eye_btn.setIcon(QIcon("icons/eye_closed.png"))
 
     def toggle_signup_password(self):
         """Переключает видимость пароля на странице регистрации"""
-        if self.signup_password.echoMode() == QLineEdit.Password:
-            self.signup_password.setEchoMode(QLineEdit.Normal)
+        if self.signup_password.echoMode() == QLineEdit.EchoMode.Password:
+            self.signup_password.setEchoMode(QLineEdit.EchoMode.Normal)
             self.signup_eye_btn.setIcon(QIcon("icons/eye_open.png"))
         else:
-            self.signup_password.setEchoMode(QLineEdit.Password)
+            self.signup_password.setEchoMode(QLineEdit.EchoMode.Password)
             self.signup_eye_btn.setIcon(QIcon("icons/eye_closed.png"))
 
     def toggle_confirm_password(self):
         """Переключает видимость подтверждения пароля"""
-        if self.signup_confirm.echoMode() == QLineEdit.Password:
-            self.signup_confirm.setEchoMode(QLineEdit.Normal)
+        if self.signup_confirm.echoMode() == QLineEdit.EchoMode.Password:
+            self.signup_confirm.setEchoMode(QLineEdit.EchoMode.Normal)
             self.confirm_eye_btn.setIcon(QIcon("icons/eye_open.png"))
         else:
-            self.signup_confirm.setEchoMode(QLineEdit.Password)
+            self.signup_confirm.setEchoMode(QLineEdit.EchoMode.Password)
             self.confirm_eye_btn.setIcon(QIcon("icons/eye_closed.png"))
 
     def handle_login(self):
@@ -1264,7 +1360,7 @@ class ProfileWindow(BaseWindow):
         top_layout.setSpacing(20)
 
         self.avatar_label = QLabel()
-        pixmap = QPixmap("icons/avatar.png").scaled(100, 100, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+        pixmap = safe_load_pixmap("icons/avatar.png", 100)
         self.avatar_label.setPixmap(pixmap)
         self.avatar_label.setFixedSize(100, 100)
         self.avatar_label.setStyleSheet("border-radius: 50px;")
@@ -1354,8 +1450,8 @@ class SettingsWindow(BaseWindow):
         """Настраивает UI окна настроек"""
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
-        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
-        scroll.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        scroll.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
 
         container = QWidget()
         scroll.setWidget(container)
@@ -1370,7 +1466,7 @@ class SettingsWindow(BaseWindow):
         for name in nav_buttons:
             btn = QPushButton(name)
             btn.setFont(self.default_font)
-            btn.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+            btn.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
             btn.setStyleSheet(f"""
                 QPushButton {{
                     background-color: #2B2B3B;
@@ -1399,7 +1495,7 @@ class SettingsWindow(BaseWindow):
 
         top_info = QHBoxLayout()
         avatar = QLabel()
-        avatar.setPixmap(QPixmap("icons/avatar.png").scaled(96, 96, Qt.KeepAspectRatio, Qt.SmoothTransformation))
+        avatar.setPixmap(safe_load_pixmap("icons/avatar.png", 96))
         avatar.setFixedSize(96, 96)
         top_info.addWidget(avatar)
 
@@ -1425,9 +1521,9 @@ class SettingsWindow(BaseWindow):
         illus_layout.addWidget(self.make_input("Add illustration link"))
 
         image = QLabel()
-        image.setPixmap(QPixmap("icons/illustration_placeholder.jpg").scaled(260, 260, Qt.KeepAspectRatio, Qt.SmoothTransformation))
+        image.setPixmap(safe_load_pixmap("icons/illustration_placeholder.jpg", 260))
         image.setFixedSize(260, 260)
-        image.setAlignment(Qt.AlignCenter)
+        image.setAlignment(Qt.AlignmentFlag.AlignCenter)
         illus_layout.addWidget(image)
         illus_layout.addStretch()
 
@@ -1440,7 +1536,7 @@ class SettingsWindow(BaseWindow):
         """Создает стилизованную метку"""
         label = QLabel(text)
         label.setStyleSheet(f"color: {PRIMARY_COLOR};")
-        label.setFont(QFont("Segoe UI", 10, QFont.Bold))
+        label.setFont(QFont("Segoe UI", 10, QFont.Weight.Bold))
         return label
 
     def make_input(self, placeholder):
@@ -1559,7 +1655,7 @@ class ServerChatWindow(BaseWindow):
         self.scroll.setStyleSheet(f"background-color: {BG_COLOR}; border: none;")
         self.messages_widget = QWidget()
         self.messages_layout = QVBoxLayout(self.messages_widget)
-        self.messages_layout.addItem(QSpacerItem(20, 40, QSizePolicy.Minimum, QSizePolicy.Expanding))
+        self.messages_layout.addItem(QSpacerItem(20, 40, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Expanding))
         self.scroll.setWidget(self.messages_widget)
         self.center_layout.addWidget(self.scroll)
 
@@ -1599,12 +1695,12 @@ if __name__ == "__main__":
     #window = Chat()   
     #window = ChatWindow() 
     #window = StartWindow()
-    window = ServerWindow()
-    #window = FriendsWindow()
+    #window = ServerWindow()
+    window = FriendsWindow()
     #window = SavedMessagesWindow()
     #window = AuthWindow() 
     #window = ProfileWindow()
     #window = SettingsWindow()
     #window = ServerChatWindow()
     window.show()
-    sys.exit(app.exec_())
+    sys.exit(app.exec())
