@@ -1688,6 +1688,307 @@ class ServerChatWindow(BaseWindow):
 
         self.center_layout.addWidget(input_frame)
 
+class CreateServerWindow(BaseWindow):
+    """Окно создания нового сервера"""
+    def __init__(self):
+        super().__init__("Create Server", use_right_sidebar=False)
+        self.setup_create_server_ui()
+
+    def setup_create_server_ui(self):
+        """Настраивает UI окна создания сервера"""
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        scroll.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+
+        container = QWidget()
+        scroll.setWidget(container)
+
+        main_layout = QVBoxLayout(container)
+        main_layout.setContentsMargins(40, 40, 40, 40)
+        main_layout.setSpacing(30)
+
+        # Заголовок
+        title = QLabel("Create a new server")
+        title.setFont(QFont(self.ribeye.family(), 24))
+        title.setStyleSheet(f"color: {PRIMARY_COLOR};")
+        main_layout.addWidget(title)
+
+        # Описание
+        description = QLabel("Give your server a personality with a name and an icon. You can always change it later.")
+        description.setFont(self.default_font)
+        description.setStyleSheet("color: white;")
+        description.setWordWrap(True)
+        main_layout.addWidget(description)
+
+        # Форма создания сервера
+        form_layout = QVBoxLayout()
+        form_layout.setSpacing(20)
+
+        # Иконка сервера
+        icon_layout = QVBoxLayout()
+        icon_layout.setSpacing(10)
+        
+        icon_label = QLabel("Server Icon")
+        icon_label.setFont(self.default_font)
+        icon_label.setStyleSheet(f"color: {PRIMARY_COLOR}; font-weight: bold;")
+        icon_layout.addWidget(icon_label)
+
+        icon_container = QFrame()
+        icon_container.setFixedSize(100, 100)
+        icon_container.setStyleSheet("""
+            QFrame {
+                background-color: #2B2B3B;
+                border-radius: 50px;
+                border: 2px dashed #4B4B4B;
+            }
+        """)
+        icon_layout.addWidget(icon_container, alignment=Qt.AlignmentFlag.AlignCenter)
+
+        upload_btn = QPushButton("Upload Icon")
+        upload_btn.setStyleSheet(f"""
+            QPushButton {{
+                background-color: {PRIMARY_COLOR};
+                color: black;
+                border-radius: 8px;
+                padding: 8px 16px;
+                font-weight: bold;
+            }}
+            QPushButton:hover {{
+                background-color: {HOVER_COLOR};
+            }}
+        """)
+        icon_layout.addWidget(upload_btn, alignment=Qt.AlignmentFlag.AlignCenter)
+        form_layout.addLayout(icon_layout)
+
+        # Название сервера
+        name_layout = QVBoxLayout()
+        name_layout.setSpacing(10)
+        
+        name_label = QLabel("Server Name")
+        name_label.setFont(self.default_font)
+        name_label.setStyleSheet(f"color: {PRIMARY_COLOR}; font-weight: bold;")
+        name_layout.addWidget(name_label)
+
+        self.server_name = QLineEdit()
+        self.server_name.setPlaceholderText("Enter server name")
+        self.server_name.setStyleSheet("""
+            QLineEdit {
+                background-color: #2B2B3B;
+                color: white;
+                border: none;
+                padding: 10px;
+                border-radius: 8px;
+                font-size: 14px;
+            }
+        """)
+        name_layout.addWidget(self.server_name)
+        form_layout.addLayout(name_layout)
+
+        # Описание сервера
+        desc_layout = QVBoxLayout()
+        desc_layout.setSpacing(10)
+        
+        desc_label = QLabel("Server Description")
+        desc_label.setFont(self.default_font)
+        desc_label.setStyleSheet(f"color: {PRIMARY_COLOR}; font-weight: bold;")
+        desc_layout.addWidget(desc_label)
+
+        self.server_desc = QLineEdit()
+        self.server_desc.setPlaceholderText("Enter server description")
+        self.server_desc.setStyleSheet("""
+            QLineEdit {
+                background-color: #2B2B3B;
+                color: white;
+                border: none;
+                padding: 10px;
+                border-radius: 8px;
+                font-size: 14px;
+            }
+        """)
+        desc_layout.addWidget(self.server_desc)
+        form_layout.addLayout(desc_layout)
+
+        main_layout.addLayout(form_layout)
+
+        # Кнопки действий
+        buttons_layout = QHBoxLayout()
+        buttons_layout.setSpacing(10)
+
+        cancel_btn = QPushButton("Cancel")
+        cancel_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #2B2B3B;
+                color: white;
+                border-radius: 8px;
+                padding: 10px 20px;
+                font-weight: bold;
+            }
+            QPushButton:hover {
+                background-color: #3B3B4B;
+            }
+        """)
+        buttons_layout.addWidget(cancel_btn)
+
+        create_btn = QPushButton("Create Server")
+        create_btn.setStyleSheet(f"""
+            QPushButton {{
+                background-color: {PRIMARY_COLOR};
+                color: black;
+                border-radius: 8px;
+                padding: 10px 20px;
+                font-weight: bold;
+            }}
+            QPushButton:hover {{
+                background-color: {HOVER_COLOR};
+            }}
+        """)
+        buttons_layout.addWidget(create_btn)
+
+        main_layout.addLayout(buttons_layout)
+        main_layout.addStretch()
+
+        self.center_layout.addWidget(scroll)
+
+class UserProfileWindow(BaseWindow):
+    """Окно профиля другого пользователя"""
+    def __init__(self, username="John Doe"):
+        super().__init__(f"{username}'s Profile", use_right_sidebar=True)
+        self.username = username
+        self.setup_user_profile_ui()
+
+    def setup_user_profile_ui(self):
+        """Настраивает UI профиля пользователя"""
+        main_layout = QVBoxLayout()
+        main_layout.setContentsMargins(30, 30, 30, 30)
+        main_layout.setSpacing(20)
+
+        # Аватар и основная информация
+        top_layout = QHBoxLayout()
+        top_layout.setSpacing(20)
+
+        self.avatar_label = QLabel()
+        pixmap = safe_load_pixmap("icons/avatar.png", 120)
+        self.avatar_label.setPixmap(pixmap)
+        self.avatar_label.setFixedSize(120, 120)
+        self.avatar_label.setStyleSheet("""
+            QLabel {
+                border-radius: 60px;
+                border: 3px solid #2B2B3B;
+            }
+        """)
+        top_layout.addWidget(self.avatar_label)
+
+        user_info_layout = QVBoxLayout()
+        user_info_layout.setSpacing(8)
+
+        self.username_label = QLabel(self.username)
+        self.username_label.setFont(QFont(self.ribeye.family(), 24))
+        self.username_label.setStyleSheet(f"color: {PRIMARY_COLOR};")
+
+        self.status_label = QLabel("Online")
+        self.status_label.setFont(self.default_font)
+        self.status_label.setStyleSheet("color: #4CAF50;")
+
+        self.about_label = QLabel("Software Developer | Gamer | Coffee Lover")
+        self.about_label.setFont(self.default_font)
+        self.about_label.setStyleSheet("color: white;")
+        self.about_label.setWordWrap(True)
+
+        user_info_layout.addWidget(self.username_label)
+        user_info_layout.addWidget(self.status_label)
+        user_info_layout.addWidget(self.about_label)
+        top_layout.addLayout(user_info_layout)
+        main_layout.addLayout(top_layout)
+
+        # Кнопки действий
+        actions_layout = QHBoxLayout()
+        actions_layout.setSpacing(10)
+
+        message_btn = QPushButton("Send Message")
+        message_btn.setIcon(QIcon("icons/chat.png"))
+        message_btn.setIconSize(QSize(20, 20))
+        message_btn.setStyleSheet(f"""
+            QPushButton {{
+                background-color: {PRIMARY_COLOR};
+                color: black;
+                border-radius: 8px;
+                padding: 10px 20px;
+                font-weight: bold;
+            }}
+            QPushButton:hover {{
+                background-color: {HOVER_COLOR};
+            }}
+        """)
+        actions_layout.addWidget(message_btn)
+
+        friend_btn = QPushButton("Add Friend")
+        friend_btn.setIcon(QIcon("icons/friends.png"))
+        friend_btn.setIconSize(QSize(20, 20))
+        friend_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #2B2B3B;
+                color: white;
+                border-radius: 8px;
+                padding: 10px 20px;
+                font-weight: bold;
+            }
+            QPushButton:hover {
+                background-color: #3B3B4B;
+            }
+        """)
+        actions_layout.addWidget(friend_btn)
+
+        main_layout.addLayout(actions_layout)
+
+        # Информация о пользователе
+        info_frame = QFrame()
+        info_frame.setStyleSheet("""
+            QFrame {
+                background-color: #2B2B3B;
+                border-radius: 12px;
+                padding: 20px;
+            }
+        """)
+        info_layout = QVBoxLayout(info_frame)
+        info_layout.setSpacing(15)
+
+        # Заголовок
+        info_title = QLabel("User Information")
+        info_title.setFont(QFont(self.default_font.family(), 14, QFont.Weight.Bold))
+        info_title.setStyleSheet(f"color: {PRIMARY_COLOR};")
+        info_layout.addWidget(info_title)
+
+        # Информационные поля
+        info_fields = [
+            ("Username", self.username),
+            ("Member Since", "January 2024"),
+            ("Location", "New York, USA"),
+            ("Status", "Available for chat"),
+            ("Games", "CS:GO, Dota 2, Minecraft")
+        ]
+
+        for label, value in info_fields:
+            field_layout = QHBoxLayout()
+            label_widget = QLabel(label)
+            label_widget.setFont(self.default_font)
+            label_widget.setStyleSheet("color: rgba(255,255,255,0.7);")
+            label_widget.setFixedWidth(100)
+            
+            value_widget = QLabel(value)
+            value_widget.setFont(self.default_font)
+            value_widget.setStyleSheet("color: white;")
+            
+            field_layout.addWidget(label_widget)
+            field_layout.addWidget(value_widget)
+            field_layout.addStretch()
+            info_layout.addLayout(field_layout)
+
+        main_layout.addWidget(info_frame)
+        main_layout.addStretch()
+
+        self.center_layout.addLayout(main_layout)
+
 # --- Точка входа ---
 if __name__ == "__main__":
     app = QApplication(sys.argv)
@@ -1696,11 +1997,13 @@ if __name__ == "__main__":
     #window = ChatWindow() 
     #window = StartWindow()
     #window = ServerWindow()
-    window = FriendsWindow()
+    #window = FriendsWindow()
     #window = SavedMessagesWindow()
     #window = AuthWindow() 
     #window = ProfileWindow()
     #window = SettingsWindow()
     #window = ServerChatWindow()
+    window = CreateServerWindow()
+    #window = UserProfileWindow()
     window.show()
     sys.exit(app.exec())
